@@ -1,0 +1,4 @@
+.vscode
+*.dll
+*.exe
+openssl-1.1.1q
