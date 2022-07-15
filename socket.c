@@ -23,7 +23,7 @@ int __cdecl main(int argc, char **argv)
     struct addrinfo *result = NULL,
                     *ptr = NULL,
                     hints;
-    const char *sendbuf = "this is a test";
+    const char *sendbuf = "GET / HTTP/1.1\r\nHost: google.com\r\nUser-Agent: curl/7.54.0\r\nConnection: close\r\nAccept: */*\r\n\r\n";
     char recvbuf[DEFAULT_BUFLEN];
     int iResult;
     int recvbuflen = DEFAULT_BUFLEN;

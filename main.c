@@ -52,31 +52,40 @@ SOCKET OpenConnection(char* hostname, char* port)
         WSACleanup();
         return 1;
     }
-    ptr = result;
-    // Create a SOCKET for connecting to server
-    ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
-    if (ConnectSocket == INVALID_SOCKET) {
-        printf("socket failed with error: %ld\n", WSAGetLastError());
-        WSACleanup();
-        return 1;
+
+    for(ptr=result; ptr != NULL ;ptr=ptr->ai_next) {
+
+        // Create a SOCKET for connecting to server
+        ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype, 
+            ptr->ai_protocol);
+        if (ConnectSocket == INVALID_SOCKET) {
+            printf("socket failed with error: %ld\n", WSAGetLastError());
+            WSACleanup();
+            return 1;
+        }
+
+        // Connect to server.
+        iResult = connect( ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
+        if (iResult == SOCKET_ERROR) {
+            closesocket(ConnectSocket);
+            ConnectSocket = INVALID_SOCKET;
+            continue;
+        }
+        break;
     }
 
-    // Connect to server.
-    iResult = connect(ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
-    if (iResult == SOCKET_ERROR) {
-        closesocket(ConnectSocket);
-        ConnectSocket = INVALID_SOCKET;
-    }
     return ConnectSocket;
 }
 
 
 SSL_CTX* InitCTX(void)
 {
-    OpenSSL_add_all_algorithms();  /* Load cryptos, et.al. */
-    SSL_load_error_strings();   /* Bring in and register error messages */
-    const SSL_METHOD* method = TLSv1_2_client_method();  /* Create new client-method instance */
-    SSL_CTX* ctx = SSL_CTX_new(method);   /* Create new context */
+    OpenSSL_add_all_algorithms(); 
+    SSL_load_error_strings();
+    const SSL_METHOD* method = SSLv23_method();
+    SSL_CTX* ctx = SSL_CTX_new(method);
+    SSL_CTX_set_options(ctx, SSL_OP_ALL | SSL_OP_NO_TLSv1_1 | SSL_OP_NO_TLSv1);
+    
     if (ctx == NULL)
     {
         ERR_print_errors_fp(stderr);
@@ -106,12 +115,20 @@ void ShowCerts(SSL* ssl)
     } 
 }
 
+void releaseSocket( SSL_CTX* ctx, int server)
+{
+    /* close socket */
+    closesocket(server);   
+    /* release context */
+    SSL_CTX_free(ctx);        
+    putchar('\n');
+}
+
 int main(int argc, char* argv[])
 {
     printf("Initializing Connection");
     char buf[1024];
-    char acClientRequest[1024] = { 0 };
-
+    
     SSL_library_init();
     char* hostname = "google.com";
     char* portnum = "443";
@@ -125,28 +142,67 @@ int main(int argc, char* argv[])
     if (SSL_connect(ssl) == FAIL) {
         ERR_print_errors_fp(stderr);
     } else {
-        const char* cpRequestMessage = "";
+        const char* cpRequestMessage = "GET / HTTP/1.1\r\nHost: www.google.com\r\nUser-Agent: curl/7.54.0\r\nConnection: close\r\nAccept: */*\r\n\r\n";
 
         printf("\n\nConnected with %s encryption\n", SSL_get_cipher(ssl));
        
         /* get any certs */
         ShowCerts(ssl);   
         /* encrypt & send message */
-        SSL_write(ssl, acClientRequest, strlen(acClientRequest));  
+        printf("REQUEST:\n\n%s\n",cpRequestMessage);
+        SSL_write(ssl, cpRequestMessage, strlen(cpRequestMessage));  
 
         /* get reply & decrypt */
-        int bytes = SSL_read(ssl, buf, sizeof(buf)); 
-
-        buf[bytes] = 0;
-        printf("%s", buf);
+        int bytes = SSL_read(ssl, buf, sizeof(buf));
+        int error = SSL_get_error(ssl,bytes);
+        switch (error)
+        {
+            case SSL_ERROR_SSL:
+                puts("SSL ERROR SSL");
+                releaseSocket(ctx,server);
+                return 1;
+            case SSL_ERROR_SYSCALL:
+                puts("SSL ERROR SYSCALL");
+                releaseSocket(ctx,server);
+                return 1;
+            case SSL_ERROR_WANT_ASYNC_JOB:
+                puts("SSL ERROR WANT ASYNC_LOOKUP");
+                releaseSocket(ctx,server);
+                return 1;
+            case SSL_ERROR_WANT_ASYNC:
+                puts("SSL ERROR WANT X509_LOOKUP");
+                releaseSocket(ctx,server);
+                return 1;
+            case SSL_ERROR_WANT_X509_LOOKUP:
+                puts("SSL ERROR WANT X509_LOOKUP");
+                releaseSocket(ctx,server);
+                return 1;
+            case SSL_ERROR_WANT_WRITE:
+                puts("SSL ERROR WANT WRITE");
+                releaseSocket(ctx,server);
+                return 1;
+            case SSL_ERROR_WANT_READ:
+                puts("SSL ERROR WANT READ");
+                releaseSocket(ctx,server);
+                return 1;
+            case SSL_ERROR_ZERO_RETURN:
+                puts("SSL ERROR SSL_ERROR_ZERO_RETURN");
+                releaseSocket(ctx,server);
+                return 1;
+            case SSL_ERROR_NONE:
+            default:
+                break;
+        }
+        puts("RESPONSE\n");
+        for(int i=0;i<bytes;i++){
+            putchar(buf[i]);
+        }
+        
         /* release connection state */
         SSL_free(ssl);       
     }
 
-    /* close socket */
-    closesocket(server);   
-    /* release context */
-    SSL_CTX_free(ctx);        
-    putchar("\n");
+    releaseSocket(ctx,server);   
+    putchar('\n');
     return 0;
 }
