@@ -21,7 +21,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-SOCKET OpenConnection(char* hostname, int port)
+SOCKET OpenConnection(char* hostname, char* port)
 {
     WSADATA wsaData;
     SOCKET ConnectSocket = INVALID_SOCKET;
@@ -32,6 +32,7 @@ SOCKET OpenConnection(char* hostname, int port)
     int iResult;
     int recvbuflen = DEFAULT_BUFLEN;
 
+    printf("\nInitializing Winsock");
     // Initialize Winsock
     iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if (iResult != 0) {
@@ -45,7 +46,7 @@ SOCKET OpenConnection(char* hostname, int port)
     hints.ai_protocol = IPPROTO_TCP;
 
     // Resolve the server address and port
-    iResult = getaddrinfo("google.com", "449", &hints, &result);
+    iResult = getaddrinfo(hostname, port, &hints, &result);
     if (iResult != 0) {
         printf("getaddrinfo failed with error: %d\n", iResult);
         WSACleanup();
@@ -107,15 +108,16 @@ void ShowCerts(SSL* ssl)
 
 int main(int argc, char* argv[])
 {
+    printf("Initializing Connection");
     char buf[1024];
     char acClientRequest[1024] = { 0 };
 
     SSL_library_init();
     char* hostname = "google.com";
-    char* portnum = "449";
+    char* portnum = "443";
 
     SSL_CTX* ctx = InitCTX();
-    int server = OpenConnection(hostname, atoi(portnum));
+    int server = OpenConnection(hostname, portnum);
     SSL* ssl = SSL_new(ctx);      /* create new SSL connection state */
     SSL_set_fd(ssl, server);    /* attach the socket descriptor */
 

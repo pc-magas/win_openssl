@@ -27,5 +27,5 @@ LANG=C i686-w64-mingw32-gcc main.c -lws2_32 -I"openssl-1.1.1q/C:/Program Files (
 ```
 mkdir ./release
 cp -r ./openssl-1.1.1q/C\:/Program\ Files\ \(x86\)/OpenSSL/bin/*.dll ./release/
-cp main.exe ./release
+cp main.exe ./release/
 ```
