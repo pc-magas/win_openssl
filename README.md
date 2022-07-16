@@ -29,3 +29,10 @@ mkdir ./release
 cp -r ./openssl-1.1.1q/C\:/Program\ Files\ \(x86\)/OpenSSL/bin/*.dll ./release/
 cp main.exe ./release/
 ```
+
+# Download Certificate
+
+```
+mkdir ./release/certificates
+echo | openssl s_client -servername google.com -connect google.com:443| sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > google.crt
+```

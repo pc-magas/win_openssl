@@ -3,11 +3,12 @@
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <shlwapi.h>
+
 #include <stdio.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
-#include <openssl/applink.c>
 
 
 // Need to link with Ws2_32.lib, Mswsock.lib, and Advapi32.lib
@@ -91,6 +92,20 @@ SSL_CTX* InitCTX(void)
         ERR_print_errors_fp(stderr);
         abort();
     }
+    
+    char* path = malloc(MAX_PATH);
+    memset(path, 0, MAX_PATH);
+    GetModuleFileName(0, path, MAX_PATH);
+    PathRemoveFileSpec(path);
+
+    sprintf(path,"%s\\%s",path,"certificates");
+    printf("\nCert path %s\n",path);
+    int value = SSL_CTX_load_verify_locations(ctx,NULL,path);
+    if(value == 0) {
+        printf("Certificate error\n");
+        exit(1);
+    }
+
     return ctx;
 }
 
@@ -133,6 +148,10 @@ int main(int argc, char* argv[])
     char* hostname = "google.com";
     char* portnum = "443";
 
+    int bytes=0,error=0;
+
+    const char* cpRequestMessage = "GET / HTTP/1.1\r\nHost: www.google.com\r\nUser-Agent: Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0\r\nConnection: close\r\nAccept: text/html;UTF-8\r\nAccept-Lang: gr\r\n\r\n";
+
     SSL_CTX* ctx = InitCTX();
     int server = OpenConnection(hostname, portnum);
     SSL* ssl = SSL_new(ctx);      /* create new SSL connection state */
@@ -142,7 +161,6 @@ int main(int argc, char* argv[])
     if (SSL_connect(ssl) == FAIL) {
         ERR_print_errors_fp(stderr);
     } else {
-        const char* cpRequestMessage = "GET / HTTP/1.1\r\nHost: www.google.com\r\nUser-Agent: curl/7.54.0\r\nConnection: close\r\nAccept: */*\r\n\r\n";
 
         printf("\n\nConnected with %s encryption\n", SSL_get_cipher(ssl));
        
@@ -152,51 +170,53 @@ int main(int argc, char* argv[])
         printf("REQUEST:\n\n%s\n",cpRequestMessage);
         SSL_write(ssl, cpRequestMessage, strlen(cpRequestMessage));  
 
-        /* get reply & decrypt */
-        int bytes = SSL_read(ssl, buf, sizeof(buf));
-        int error = SSL_get_error(ssl,bytes);
-        switch (error)
-        {
-            case SSL_ERROR_SSL:
-                puts("SSL ERROR SSL");
-                releaseSocket(ctx,server);
-                return 1;
-            case SSL_ERROR_SYSCALL:
-                puts("SSL ERROR SYSCALL");
-                releaseSocket(ctx,server);
-                return 1;
-            case SSL_ERROR_WANT_ASYNC_JOB:
-                puts("SSL ERROR WANT ASYNC_LOOKUP");
-                releaseSocket(ctx,server);
-                return 1;
-            case SSL_ERROR_WANT_ASYNC:
-                puts("SSL ERROR WANT X509_LOOKUP");
-                releaseSocket(ctx,server);
-                return 1;
-            case SSL_ERROR_WANT_X509_LOOKUP:
-                puts("SSL ERROR WANT X509_LOOKUP");
-                releaseSocket(ctx,server);
-                return 1;
-            case SSL_ERROR_WANT_WRITE:
-                puts("SSL ERROR WANT WRITE");
-                releaseSocket(ctx,server);
-                return 1;
-            case SSL_ERROR_WANT_READ:
-                puts("SSL ERROR WANT READ");
-                releaseSocket(ctx,server);
-                return 1;
-            case SSL_ERROR_ZERO_RETURN:
-                puts("SSL ERROR SSL_ERROR_ZERO_RETURN");
-                releaseSocket(ctx,server);
-                return 1;
-            case SSL_ERROR_NONE:
-            default:
-                break;
-        }
-        puts("RESPONSE\n");
-        for(int i=0;i<bytes;i++){
-            putchar(buf[i]);
-        }
+
+        do {
+
+            int bytes = SSL_read(ssl, buf, sizeof(buf));
+            int error = SSL_get_error(ssl,bytes);
+
+            switch (error)
+            {
+                case SSL_ERROR_SSL:
+                    puts("SSL ERROR SSL");
+                    releaseSocket(ctx,server);
+                    return 1;
+                case SSL_ERROR_SYSCALL:
+                    puts("SSL ERROR SYSCALL");
+                    releaseSocket(ctx,server);
+                    return 1;
+                case SSL_ERROR_WANT_ASYNC_JOB:
+                    puts("SSL ERROR WANT ASYNC_LOOKUP");
+                    releaseSocket(ctx,server);
+                    return 1;
+                case SSL_ERROR_WANT_ASYNC:
+                    puts("SSL ERROR WANT X509_LOOKUP");
+                    releaseSocket(ctx,server);
+                    return 1;
+                case SSL_ERROR_WANT_X509_LOOKUP:
+                    puts("SSL ERROR WANT X509_LOOKUP");
+                    releaseSocket(ctx,server);
+                    return 1;
+                case SSL_ERROR_WANT_WRITE:
+                    puts("SSL ERROR WANT WRITE");
+                    releaseSocket(ctx,server);
+                    return 1;
+                case SSL_ERROR_WANT_READ:
+                    puts("SSL ERROR WANT READ");
+                    releaseSocket(ctx,server);
+                    return 1;
+                case SSL_ERROR_ZERO_RETURN:
+                    puts("SSL ERROR SSL_ERROR_ZERO_RETURN");
+                    releaseSocket(ctx,server);
+                    return 1;
+                case SSL_ERROR_NONE:
+                default:
+                    break;
+            }
+
+            puts(buf);
+        } while (bytes>0);
         
         /* release connection state */
         SSL_free(ssl);       
