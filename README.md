@@ -1,11 +1,14 @@
-#Install Compiler
+# Winsock withg OpenSSL example
+An self-educational code where I perform Http requests via openssl to google
+
+## Install Compiler
 
 ```
 sudo apt-get install gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 wine64
 sudo apt-get install g++-mingw-w64-i686 g++-mingw-w64-i686
 ```
 
-# Build OpenSSL
+## Build OpenSSL
 
 ```
 wget https://www.openssl.org/source/openssl-1.1.1q.tar.gz
@@ -16,13 +19,13 @@ make -j 16 # j can ommited it is used to specify the build threads
 make install
 ```
 
-# Build APP
+## Build APP
 
 ```
 LANG=C i686-w64-mingw32-gcc main.c -lws2_32 -I"openssl-1.1.1q/C:/Program Files (x86)/OpenSSL/include" -L"openssl-1.1.1q/C:/Program Files (x86)/OpenSSL/lib" -fpermissive -o main.exe -lcrypto -lssl
 ```
 
-# Run the app
+## Run the app
 
 ```
 mkdir ./release
@@ -30,7 +33,7 @@ cp -r ./openssl-1.1.1q/C\:/Program\ Files\ \(x86\)/OpenSSL/bin/*.dll ./release/
 cp main.exe ./release/
 ```
 
-# Download Certificate
+## Download Certificate
 
 ```
 mkdir ./release/certificates
