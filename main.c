@@ -93,11 +93,13 @@ SSL_CTX* InitCTX(void)
         abort();
     }
     
-    char* path = malloc(MAX_PATH);
+    // directory where executable is
+    char path[MAX_PATH] = "";
     memset(path, 0, MAX_PATH);
     GetModuleFileName(0, path, MAX_PATH);
     PathRemoveFileSpec(path);
 
+    // Verify certificate
     sprintf(path,"%s\\%s",path,"certificates");
     printf("\nCert path %s\n",path);
     int value = SSL_CTX_load_verify_locations(ctx,NULL,path);
@@ -105,6 +107,8 @@ SSL_CTX* InitCTX(void)
         printf("Certificate error\n");
         exit(1);
     }
+
+    SSL_CTX_set_verify(ctx,SSL_VERIFY_PEER,NULL);
 
     return ctx;
 }
@@ -120,7 +124,6 @@ void ShowCerts(SSL* ssl)
         printf("Server certificates:\n");
         line = X509_NAME_oneline(X509_get_subject_name(cert), 0, 0);
         printf("Subject: %s\n", line);
-        //free(line);       /* free the malloc'ed string */
         line = X509_NAME_oneline(X509_get_issuer_name(cert), 0, 0);
         printf("Issuer: %s\n", line);
         //free(line);       /* free the malloc'ed string */
