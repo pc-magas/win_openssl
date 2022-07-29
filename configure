@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+
+TEMP=`getopt -o ab:c:: --long a-long,b-long:,c-long:: \
+     -n 'example.bash' -- "$@"`
+
+if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
+
+# Note the quotes around `$TEMP': they are essential!
+eval set -- "$TEMP"
+
+SYSTEM="linux"
+
+while true ; do
+    case "$1" in
+        windows) SYSTEM="windows" ; shift ;;
+        *) shift ;;
+    esac
+done
+
+if [SYSTEM == "linux"]; then
+    cp Makefile.linux Makefile
+elif [SYSTEM == "windows"]; then
+    cp Makefile.windows Makefile
+fi
