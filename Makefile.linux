@@ -1,0 +1,10 @@
+CC=gcc
+CFLAGS=-lcrypto -lssl
+
+default: build
+
+clean:
+	rm -rf ./release/32/* && rm -rf ./release/64/*
+
+build: copy64_openssl
+	$(CC) ./src/main.cpp $(CFLAGS) -o ./release/64/main.exe

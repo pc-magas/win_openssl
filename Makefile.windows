@@ -1,0 +1,22 @@
+CC64=x86_64-w64-mingw32-gcc
+CC=i686-w64-mingw32-gcc
+CFLAGS=-lcrypto -lssl -static-libgcc -static-libstdc++ -lws2_32
+LIBPATH64=-I"./lib/64/include/" -L"./lib/64/lib64"
+LIBPATH32=-I"./lib/32/include/" -L"./lib/32/lib"
+
+default: build32 build64
+
+clean:
+	rm -rf ./release/32/* && rm -rf ./release/64/*
+
+copy32_openssl:
+	cp -r ./lib/32/bin/*.dll ./release/32
+
+copy64_openssl:
+	cp -r ./lib/64/bin/*.dll ./release/64
+
+build64: copy64_openssl
+	$(CC64) ./src/main.cpp $(CFLAGS) $(LIBPATH64) -o ./release/64/main.exe
+
+build32: copy32_openssl
+	$(CC) ./src/main.cpp $(CFLAGS) $(LIBPATH32) -o ./release/32/main.exe
