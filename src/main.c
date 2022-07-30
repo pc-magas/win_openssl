@@ -1,15 +1,20 @@
+#include <stdio.h>
+#include<string.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+#define DEFAULT_BUFLEN 512
+#define FAIL    -1
+
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS
+
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <shlwapi.h>
-
-#include <stdio.h>
-
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-
 
 // Need to link with Ws2_32.lib, Mswsock.lib, and Advapi32.lib
 #pragma comment (lib, "Ws2_32.lib")
@@ -17,10 +22,24 @@
 //#pragma comment (lib, "AdvApi32.lib")
 
 
-#define DEFAULT_BUFLEN 512
-#define FAIL    -1
-
 #define WIN32_LEAN_AND_MEAN
+
+
+int verifyCerts( SSL_CTX* ctx )
+{
+    // directory where executable is
+    char path[MAX_PATH] = "";
+    
+    memset(path, 0, MAX_PATH);
+    GetModuleFileName(0, path, MAX_PATH);
+    PathRemoveFileSpec(path);
+
+    sprintf(path,"%s\\%s",path,"certificates");
+    printf("\nCert path %s\n",path);
+    sprintf(path,"%s\\%s",path,"certificates");
+    printf("\nCert path %s\n",path);
+    return SSL_CTX_load_verify_locations(ctx,NULL,path);
+}
 
 SOCKET OpenConnection(char* hostname, char* port)
 {
@@ -78,6 +97,86 @@ SOCKET OpenConnection(char* hostname, char* port)
     return ConnectSocket;
 }
 
+void releaseSocket( SSL_CTX* ctx, int server)
+{
+    /* close socket */
+    closesocket(server);   
+    /* release context */
+    SSL_CTX_free(ctx);        
+    putchar('\n');
+}
+
+#else
+
+#include<sys/types.h>
+#include<sys/socket.h>
+#include<netinet/in.h>
+#include<arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+
+#include <stdlib.h>
+
+#ifndef INADDR_NONE
+    #define INADDR_NONE 0xffffffff
+#endif  //INADDR_NONE 
+
+typedef int SOCKET;
+
+SOCKET OpenConnection(char* hostname, char* port){
+    struct hostent *phe;
+    struct sockaddr_in sin;
+    unsigned int port_as_integer = htons((unsigned short)atoi(port));
+
+    int sock;
+
+    memset(&sin,0,sizeof(sin));
+    sin.sin_family = AF_INET;
+
+    if(port_as_integer == 0){
+        return -1;
+    }
+
+    sin.sin_port = port_as_integer;
+    
+    if(phe = gethostbyname(hostname)){
+        memcpy(&sin.sin_addr,phe->h_addr, phe->h_length);
+    } else if((sin.sin_addr.s_addr = inet_addr(hostname)) == INADDR_NONE){
+        return -1;
+    }
+
+    sock = socket(PF_INET,SOCK_STREAM,6);
+
+    if(socket < 0 || connect(sock, (const struct sockaddr *)&sin, sizeof(sin) ) < 0 ){
+        return -1;
+    }
+
+    return (SOCKET) sock;
+}
+
+int verifyCerts( SSL_CTX* ctx )
+{
+    
+    const char *path = getenv(X509_get_default_cert_dir_env());
+
+    if (!path){
+        path = X509_get_default_cert_dir();
+    }
+
+    return SSL_CTX_load_verify_locations(ctx,NULL,path);
+}
+
+void releaseSocket( SSL_CTX* ctx, int server)
+{
+    /* close socket */
+    close(server);   
+    /* release context */
+    SSL_CTX_free(ctx);        
+    putchar('\n');
+}
+
+#endif
+
 
 SSL_CTX* InitCTX(void)
 {
@@ -92,17 +191,8 @@ SSL_CTX* InitCTX(void)
         ERR_print_errors_fp(stderr);
         abort();
     }
-    
-    // directory where executable is
-    char path[MAX_PATH] = "";
-    memset(path, 0, MAX_PATH);
-    GetModuleFileName(0, path, MAX_PATH);
-    PathRemoveFileSpec(path);
-
-    // Verify certificate
-    sprintf(path,"%s\\%s",path,"certificates");
-    printf("\nCert path %s\n",path);
-    int value = SSL_CTX_load_verify_locations(ctx,NULL,path);
+   
+    int value = verifyCerts( ctx );
     if(value == 0) {
         printf("Certificate error\n");
         exit(1);
@@ -133,15 +223,6 @@ void ShowCerts(SSL* ssl)
     } 
 }
 
-void releaseSocket( SSL_CTX* ctx, int server)
-{
-    /* close socket */
-    closesocket(server);   
-    /* release context */
-    SSL_CTX_free(ctx);        
-    putchar('\n');
-}
-
 int main(int argc, char* argv[])
 {
     printf("Initializing Connection");
@@ -167,8 +248,6 @@ int main(int argc, char* argv[])
 
         printf("\n\nConnected with %s encryption\n", SSL_get_cipher(ssl));
        
-        /* get any certs */
-        ShowCerts(ssl);   
         /* encrypt & send message */
         printf("REQUEST:\n\n%s\n",cpRequestMessage);
         SSL_write(ssl, cpRequestMessage, strlen(cpRequestMessage));  

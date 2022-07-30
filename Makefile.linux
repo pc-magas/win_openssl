@@ -1,10 +1,14 @@
 CC=gcc
 CFLAGS=-lcrypto -lssl
+RELEASE_PATH = ./release/linux/64
 
 default: build
 
-clean:
-	rm -rf ./release/32/* && rm -rf ./release/64/*
+make_release_path:
+	mkdir -p ${RELEASE_PATH}
 
-build: copy64_openssl
-	$(CC) ./src/main.cpp $(CFLAGS) -o ./release/64/main.exe
+clean:
+	rm -rf ${RELEASE_PATH}
+
+build: make_release_path
+	$(CC) ./src/main.c $(CFLAGS) -o ${RELEASE_PATH}/main

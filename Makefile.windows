@@ -4,6 +4,7 @@ CFLAGS=-lcrypto -lssl -static-libgcc -static-libstdc++ -lws2_32
 LIBPATH64=-I"./lib/64/include/" -L"./lib/64/lib64"
 LIBPATH32=-I"./lib/32/include/" -L"./lib/32/lib"
 
+
 default: build32 build64
 
 clean:
