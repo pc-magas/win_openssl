@@ -6,3 +6,4 @@ release
 !release/certificates
 lib/*
 !lib/.gitkeep
+Makefile

@@ -1,24 +1,25 @@
 #!/usr/bin/env bash
 
-TEMP=`getopt -o ab:c:: --long a-long,b-long:,c-long:: \
-     -n 'example.bash' -- "$@"`
-
-if [ $? != 0 ] ; then echo "Terminating..." >&2 ; exit 1 ; fi
-
-# Note the quotes around `$TEMP': they are essential!
-eval set -- "$TEMP"
-
 SYSTEM="linux"
+if [ "$1" == "windows" ]; then SYSTEM="windows"; fi
 
-while true ; do
-    case "$1" in
-        windows) SYSTEM="windows" ; shift ;;
-        *) shift ;;
-    esac
-done
-
-if [SYSTEM == "linux"]; then
+if [ $SYSTEM == "linux" ]; then
+    
     cp Makefile.linux Makefile
-elif [SYSTEM == "windows"]; then
+
+    gcc -v
+    if [ $? != 0 ] ;then echo "GCC is not installed" >&2; exit 1; fi
+
+elif [ $SYSTEM == "windows" ]; then
+    
+    echo "Using windows makefile"
     cp Makefile.windows Makefile
+
+    x86_64-w64-mingw32-gcc --version
+    if [ $? != 0 ] ;then echo "Mingw 64 bit is not installed" >&2; exit 1; fi
+
+    i686-w64-mingw32-gcc --version
+    if [ $? != 0 ] ;then echo "Mingw 32 bit is not installed" >&2; exit 1; fi
+else
+    echo "System ${SYSTEM} is not supported" >&2; exit 1; 
 fi
